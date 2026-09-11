@@ -8,6 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <style>
   :root{
     --ink:#20302c;
@@ -358,26 +361,19 @@
 
   /* ---- Floating add-product button ---- */
   .fab{
-    display: none !important;
-    position: fixed;
-    right: 1.3rem;
-    bottom: 1.3rem;
-    z-index: 40;
-    background: var(--rose-dark);
-    color: #fff;
-    border: none;
-    border-radius: 100px;
-    padding: 0.9rem 1.3rem;
-    font-size: 0.9rem;
-    font-weight: 700;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.25);
-  }
-  .fab.show{
-    display: inline-flex !important;
-  }
+    display:none;
+    position:fixed;
+    right:1.3rem;
+    bottom:1.3rem;
+    z-index:40;
+    background:var(--rose-dark);
+    color:#fff;
+    border:none;
+    border-radius:100px;
+    padding:0.9rem 1.3rem;
+    font-size:0.9rem;
+    font-weight:700;
+    display:inline-flex;
     align-items:center;
     gap:0.5rem;
     cursor:pointer;
@@ -385,6 +381,41 @@
   }
   .fab svg{width:18px;height:18px;}
   .fab.show{display:inline-flex;}
+  .logout-fab{
+    position:fixed;
+    right:1.3rem;
+    bottom:4.6rem;
+    z-index:40;
+    display:none;
+    background:var(--ink);
+    color:#fff;
+    border:none;
+    border-radius:100px;
+    padding:0.55rem 1rem;
+    font-size:0.78rem;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .logout-fab.show{display:inline-flex;}
+  .admin-footer-link{
+    display:inline-block;
+    margin-top:1rem;
+    color:#6b7a75;
+    font-size:0.72rem;
+    text-decoration:none;
+    opacity:0.5;
+  }
+  .login-field{margin-bottom:1rem;}
+  .login-field label{display:block; font-size:0.85rem; font-weight:600; margin-bottom:0.35rem;}
+  .login-field input{
+    width:100%;
+    padding:0.6rem 0.75rem;
+    border:1.5px solid var(--line);
+    border-radius:7px;
+    font-size:0.92rem;
+    background:var(--paper);
+    color:var(--ink);
+  }
 
   /* ---- Admin modal ---- */
   .modal-overlay{
@@ -568,12 +599,35 @@
   <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
   Naya Product Add Karein
 </button>
+<button class="logout-fab" id="logoutBtn">Logout</button>
+
+<div class="modal-overlay" id="loginOverlay">
+  <div class="modal">
+    <button class="close-x" id="closeLoginBtn">&times;</button>
+    <h3>Admin Login</h3>
+    <p class="modal-sub">Product add karne ke liye apna email aur password dalein.</p>
+    <form id="loginForm">
+      <div class="login-field">
+        <label>Email</label>
+        <input type="email" id="loginEmail" required>
+      </div>
+      <div class="login-field">
+        <label>Password</label>
+        <input type="password" id="loginPassword" required>
+      </div>
+      <div class="modal-actions">
+        <button type="submit" class="btn-primary">Login</button>
+        <button type="button" class="btn-secondary" id="cancelLoginBtn">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
     <button class="close-x" id="closeModalBtn">&times;</button>
     <h3>Naya Product Add Karein</h3>
-    <p class="modal-sub">Yahan se aap khud image, price, discount aur video ke sath naya product apni website mein daal sakte hain.</p>
+    <p class="modal-sub">Yahan se aap khud image, price, discount aur video ke sath naya product apni website mein daal sakte hain. Add karte hi yeh sab customers ko turant nazar aa jayega.</p>
 
     <form id="productForm">
       <div class="field">
@@ -620,12 +674,7 @@
       <div class="field">
         <label>Video ka link (YouTube ya Facebook, optional)</label>
         <input type="text" id="pVideoLink" placeholder="https://youtube.com/...">
-        <div class="hint">Ya neechay se seedha video file upload karein (chota size, 2MB tak).</div>
-      </div>
-
-      <div class="field">
-        <label>Video file upload (optional, 2MB tak)</label>
-        <input type="file" id="pVideoFile" accept="video/*">
+        <div class="hint">Video seedha upload nahi hoti (bohot bari file hoti hai) — iska link paste karna behtar hai.</div>
       </div>
 
       <div class="modal-actions">
@@ -633,14 +682,6 @@
         <button type="button" class="btn-secondary" id="cancelBtn">Cancel</button>
       </div>
     </form>
-
-    <button class="btn-download" id="downloadBtn">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
-      Updated Website Download Karein
-    </button>
-    <div class="download-note">
-      Zaroori baat: naya product yahan add karne ke baad sirf aapke apne phone/computer par nazar aata hai. Sab customers ko dikhane ke liye, "Updated Website Download Karein" par click karein, phir yeh nayi file Netlify ya GitHub Pages par dobara upload kar dein — is se website sab ke liye update ho jayegi.
-    </div>
   </div>
 </div>
 
@@ -648,6 +689,7 @@
   <div class="fbrand">Saba's Trader</div>
   <p>Order karne ke liye WhatsApp par message karein:<br>
   <a class="fwa" href="https://wa.me/923182576578" target="_blank" rel="noopener">+92 318 2576578</a></p>
+  <a href="javascript:void(0)" class="admin-footer-link" id="adminLoginLink">Admin</a>
 </footer>
 
 <script>
@@ -695,16 +737,43 @@ const FALLBACK_ICONS = {
 
 const WA_NUMBER = "923182576578";
 
-function getCustomProducts(){
-  try{ return JSON.parse(localStorage.getItem("sabaCustomProducts") || "[]"); }
-  catch(e){ return []; }
-}
-function saveCustomProducts(arr){
-  localStorage.setItem("sabaCustomProducts", JSON.stringify(arr));
-}
+const firebaseConfig = {
+  apiKey: "AIzaSyDbDh5wcXNJQZ_guFRcfYldRLj5kriVduA",
+  authDomain: "sabas-trader.firebaseapp.com",
+  projectId: "sabas-trader",
+  storageBucket: "sabas-trader.firebasestorage.app",
+  messagingSenderId: "491499459727",
+  appId: "1:491499459727:web:5da742b44f2561e4024cfa",
+  measurementId: "G-3YG55H3WNG"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+let liveProducts = [];
+let isAdmin = false;
+
 function getAllProducts(){
-  return PRODUCTS.concat(getCustomProducts());
+  return PRODUCTS.concat(liveProducts);
 }
+
+db.collection("products").onSnapshot(function(snapshot){
+  liveProducts = snapshot.docs.map(function(doc){
+    const d = doc.data();
+    d.id = doc.id;
+    d.custom = true;
+    return d;
+  });
+  renderAll(document.getElementById("searchInput").value);
+}, function(err){
+  console.error("Firestore error:", err);
+});
+
+auth.onAuthStateChanged(function(user){
+  isAdmin = !!user;
+  document.getElementById("openAdminBtn").classList.toggle("show", isAdmin);
+  document.getElementById("logoutBtn").classList.toggle("show", isAdmin);
+});
 
 function waLink(name){
   const text = encodeURIComponent("Assalam-o-Alaikum, mujhe " + name + " order karni hai.");
@@ -723,7 +792,7 @@ function youtubeEmbed(url){
 }
 
 function makeCard(p){
-  const isCustom = p.id && String(p.id).startsWith("custom-");
+  const isCustom = p.custom === true;
   let discountBadge = "";
   let priceHtml = '<span class="price">Rs. ' + Number(p.price).toLocaleString() + '</span>';
   if(p.oldPrice && Number(p.oldPrice) > Number(p.price)){
@@ -748,7 +817,7 @@ function makeCard(p){
 
   return '<div class="card">' +
     discountBadge +
-    (isCustom ? '<button class="remove-btn" onclick="removeCustomProduct(\'' + p.id + '\')" aria-label="Remove">&times;</button>' : '') +
+    (isCustom && isAdmin ? '<button class="remove-btn" onclick="removeCustomProduct(\'' + p.id + '\')" aria-label="Remove">&times;</button>' : '') +
     '<div class="card-icon">' + iconHtml + '</div>' +
     '<div class="card-body">' +
       '<div class="cod-tag"><svg viewBox="0 0 24 24" fill="none" stroke="' + getComputedStyle(document.documentElement).getPropertyValue('--cod-green') + '" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>Cash on Delivery</div>' +
@@ -793,9 +862,8 @@ function renderAll(searchTerm){
 }
 
 function removeCustomProduct(id){
-  const arr = getCustomProducts().filter(function(p){ return p.id !== id; });
-  saveCustomProducts(arr);
-  renderAll(document.getElementById("searchInput").value);
+  if(!isAdmin) return;
+  db.collection("products").doc(id).delete();
 }
 
 document.getElementById("searchInput").addEventListener("input", function(e){
@@ -812,9 +880,11 @@ const imgPreview = document.getElementById("imgPreview");
 const imgPreviewTag = document.getElementById("imgPreviewTag");
 
 let pendingImageData = null;
-let pendingVideoData = null;
 
-openAdminBtn.addEventListener("click", function(){ modalOverlay.classList.add("open"); });
+openAdminBtn.addEventListener("click", function(){
+  if(!isAdmin) return;
+  modalOverlay.classList.add("open");
+});
 closeModalBtn.addEventListener("click", function(){ modalOverlay.classList.remove("open"); });
 cancelBtn.addEventListener("click", function(){ modalOverlay.classList.remove("open"); });
 modalOverlay.addEventListener("click", function(e){ if(e.target === modalOverlay) modalOverlay.classList.remove("open"); });
@@ -824,14 +894,14 @@ function resizeImage(file, callback){
   reader.onload = function(e){
     const img = new Image();
     img.onload = function(){
-      const maxW = 800;
+      const maxW = 700;
       const scale = Math.min(1, maxW / img.width);
       const canvas = document.createElement("canvas");
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
       const ctx = canvas.getContext("2d");
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      callback(canvas.toDataURL("image/jpeg", 0.75));
+      callback(canvas.toDataURL("image/jpeg", 0.6));
     };
     img.src = e.target.result;
   };
@@ -848,21 +918,12 @@ pImage.addEventListener("change", function(){
   });
 });
 
-document.getElementById("pVideoFile").addEventListener("change", function(e){
-  const file = e.target.files[0];
-  if(!file) return;
-  if(file.size > 2 * 1024 * 1024){
-    alert("Yeh video 2MB se bari hai. Iski jagah video ka link (YouTube ya Facebook) upar wale box mein paste karein.");
-    e.target.value = "";
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = function(ev){ pendingVideoData = ev.target.result; };
-  reader.readAsDataURL(file);
-});
-
 productForm.addEventListener("submit", function(e){
   e.preventDefault();
+  if(!isAdmin){
+    alert("Pehlay admin login karein.");
+    return;
+  }
   const name = document.getElementById("pName").value.trim();
   const category = document.getElementById("pCategory").value;
   const desc = document.getElementById("pDesc").value.trim();
@@ -877,60 +938,50 @@ productForm.addEventListener("submit", function(e){
   }
 
   const newProduct = {
-    id: "custom-" + Date.now(),
     category: category,
     name: name,
     desc: desc,
     price: price,
     oldPrice: oldPrice,
-    image: pendingImageData,
-    video: pendingVideoData || (videoLink || null)
+    image: pendingImageData || null,
+    video: videoLink || null,
+    createdAt: Date.now()
   };
 
-  const arr = getCustomProducts();
-  arr.push(newProduct);
-  saveCustomProducts(arr);
-
-  productForm.reset();
-  pendingImageData = null;
-  pendingVideoData = null;
-  imgPreview.classList.remove("show");
-  modalOverlay.classList.remove("open");
-  renderAll(document.getElementById("searchInput").value);
-  window.location.hash = "#" + category;
+  db.collection("products").add(newProduct).then(function(){
+    productForm.reset();
+    pendingImageData = null;
+    imgPreview.classList.remove("show");
+    modalOverlay.classList.remove("open");
+    window.location.hash = "#" + category;
+  }).catch(function(err){
+    alert("Product save nahi hua: " + err.message);
+  });
 });
 
-document.getElementById("downloadBtn").addEventListener("click", function(){
-  const merged = getAllProducts();
-  let html = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
-  const newArrayText = "const PRODUCTS = " + JSON.stringify(merged, null, 2) + ";";
-  html = html.replace(/\/\*PRODUCTS_START\*\/[\s\S]*?\/\*PRODUCTS_END\*\//, "/*PRODUCTS_START*/\n" + newArrayText + "\n/*PRODUCTS_END*/");
-  const blob = new Blob([html], {type:"text/html"});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "index.html";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(function(){ URL.revokeObjectURL(url); }, 2000);
-  localStorage.removeItem("sabaCustomProducts");
-  renderAll(document.getElementById("searchInput").value);
-  alert("Nayi file download ho gayi hai. Ab isay Netlify ya GitHub Pages par dobara upload kar dein taake sab customers ko naye products nazar aayein.");
+const loginOverlay = document.getElementById("loginOverlay");
+document.getElementById("adminLoginLink").addEventListener("click", function(){
+  loginOverlay.classList.add("open");
+});
+document.getElementById("closeLoginBtn").addEventListener("click", function(){ loginOverlay.classList.remove("open"); });
+document.getElementById("cancelLoginBtn").addEventListener("click", function(){ loginOverlay.classList.remove("open"); });
+loginOverlay.addEventListener("click", function(e){ if(e.target === loginOverlay) loginOverlay.classList.remove("open"); });
+
+document.getElementById("loginForm").addEventListener("submit", function(e){
+  e.preventDefault();
+  const email = document.getElementById("loginEmail").value.trim();
+  const pass = document.getElementById("loginPassword").value;
+  auth.signInWithEmailAndPassword(email, pass).then(function(){
+    loginOverlay.classList.remove("open");
+    document.getElementById("loginForm").reset();
+  }).catch(function(err){
+    alert("Login nahi hua: " + err.message);
+  });
 });
 
-const OWNER_SECRET = "saba786";
-function checkOwnerAccess(){
-  const params = new URLSearchParams(window.location.search);
-  const key = params.get("owner");
-  if(key === OWNER_SECRET){
-    localStorage.setItem("sabaIsOwner", "1");
-  }
-  if(localStorage.getItem("sabaIsOwner") === "1"){
-    document.getElementById("openAdminBtn").classList.add("show");
-  }
-}
-checkOwnerAccess();
+document.getElementById("logoutBtn").addEventListener("click", function(){
+  auth.signOut();
+});
 
 renderAll("");
 </script>
