@@ -11,7 +11,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
 <style>
   :root{
     --ink:#20302c;
@@ -370,7 +369,7 @@
   .order-btn svg{width:15px; height:15px;}
 
   /* ---- Floating add-product button ---- */
- .fab{
+.fab{
     display: none !important;
     position: fixed;
     right: 1.3rem;
@@ -676,8 +675,9 @@
       </div>
 
       <div class="field">
-        <label>Product ki tasveer (image)</label>
-        <input type="file" id="pImage" accept="image/*">
+        <label>Product ki tasveer ka link</label>
+        <input type="text" id="pImageLink" placeholder="https://i.ibb.co/xxxxx/photo.jpg">
+        <div class="hint">imgbb.com par jaa kar apni tasveer upload karein, wahan se "Direct link" copy kar ke yahan paste karein.</div>
         <div class="img-preview" id="imgPreview"><img id="imgPreviewTag" src=""></div>
       </div>
 
@@ -759,7 +759,6 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
-const storage = firebase.storage();
 
 let liveProducts = [];
 let isAdmin = false;
@@ -888,11 +887,9 @@ const openAdminBtn = document.getElementById("openAdminBtn");
 const closeModalBtn = document.getElementById("closeModalBtn");
 const cancelBtn = document.getElementById("cancelBtn");
 const productForm = document.getElementById("productForm");
-const pImage = document.getElementById("pImage");
+const pImageLink = document.getElementById("pImageLink");
 const imgPreview = document.getElementById("imgPreview");
 const imgPreviewTag = document.getElementById("imgPreviewTag");
-
-let pendingImageBlob = null;
 
 openAdminBtn.addEventListener("click", function(){
   if(!isAdmin) return;
@@ -902,27 +899,14 @@ closeModalBtn.addEventListener("click", function(){ modalOverlay.classList.remov
 cancelBtn.addEventListener("click", function(){ modalOverlay.classList.remove("open"); });
 modalOverlay.addEventListener("click", function(e){ if(e.target === modalOverlay) modalOverlay.classList.remove("open"); });
 
-pImage.addEventListener("change", function(){
-  const file = pImage.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e){
-    const img = new Image();
-    img.onload = function(){
-      const maxW = 700;
-      const scale = Math.min(1, maxW / img.width);
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      imgPreviewTag.src = canvas.toDataURL("image/jpeg", 0.75);
-      imgPreview.classList.add("show");
-      canvas.toBlob(function(blob){ pendingImageBlob = blob; }, "image/jpeg", 0.75);
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
+pImageLink.addEventListener("input", function(){
+  const url = pImageLink.value.trim();
+  if(url){
+    imgPreviewTag.src = url;
+    imgPreview.classList.add("show");
+  } else {
+    imgPreview.classList.remove("show");
+  }
 });
 
 productForm.addEventListener("submit", function(e){
@@ -950,35 +934,19 @@ productForm.addEventListener("submit", function(e){
     desc: desc,
     price: price,
     oldPrice: oldPrice,
+    image: document.getElementById("pImageLink").value.trim() || null,
     video: videoLink || null,
     createdAt: Date.now()
   };
 
-  function saveProduct(imageUrl){
-    newProduct.image = imageUrl || null;
-    db.collection("products").add(newProduct).then(function(){
-      productForm.reset();
-      pendingImageBlob = null;
-      imgPreview.classList.remove("show");
-      modalOverlay.classList.remove("open");
-      window.location.hash = "#" + category;
-    }).catch(function(err){
-      alert("Product save nahi hua: " + err.message);
-    });
-  }
-
-  if(pendingImageBlob){
-    const fileRef = storage.ref().child("products/" + Date.now() + ".jpg");
-    fileRef.put(pendingImageBlob).then(function(snapshot){
-      return snapshot.ref.getDownloadURL();
-    }).then(function(url){
-      saveProduct(url);
-    }).catch(function(err){
-      alert("Image upload nahi hui: " + err.message);
-    });
-  } else {
-    saveProduct(null);
-  }
+  db.collection("products").add(newProduct).then(function(){
+    productForm.reset();
+    imgPreview.classList.remove("show");
+    modalOverlay.classList.remove("open");
+    window.location.hash = "#" + category;
+  }).catch(function(err){
+    alert("Product save nahi hua: " + err.message);
+  });
 });
 
 const loginOverlay = document.getElementById("loginOverlay");
