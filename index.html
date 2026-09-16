@@ -299,9 +299,44 @@
     justify-content:center;
     background:var(--teal-soft);
     overflow:hidden;
+    position:relative;
   }
   .card-icon img{width:100%;height:100%;object-fit:cover;}
   .card-icon svg{width:50px; height:50px;}
+  .gallery-arrow{
+    position:absolute;
+    top:50%;
+    transform:translateY(-50%);
+    width:26px;height:26px;
+    border-radius:50%;
+    border:none;
+    background:rgba(32,48,44,0.55);
+    color:#fff;
+    font-size:0.85rem;
+    line-height:1;
+    cursor:pointer;
+    z-index:2;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .gallery-arrow.prev{left:8px;}
+  .gallery-arrow.next{right:8px;}
+  .gallery-dots{
+    position:absolute;
+    bottom:8px;
+    left:0;right:0;
+    display:flex;
+    justify-content:center;
+    gap:5px;
+    z-index:2;
+  }
+  .gallery-dots span{
+    width:6px;height:6px;
+    border-radius:50%;
+    background:rgba(255,255,255,0.6);
+  }
+  .gallery-dots span.active{background:#fff;}
   .card-body{padding:1rem 1.1rem 1.2rem; display:flex; flex-direction:column; flex:1;}
   .card-body h3{font-size:1.02rem; font-weight:600; margin-bottom:0.3rem;}
   .card-note{
@@ -369,7 +404,7 @@
   .order-btn svg{width:15px; height:15px;}
 
   /* ---- Floating add-product button ---- */
-.fab{
+ .fab{
     display: none !important;
     position: fixed;
     right: 1.3rem;
@@ -675,9 +710,9 @@
       </div>
 
       <div class="field">
-        <label>Product ki tasveer ka link</label>
-        <input type="text" id="pImageLink" placeholder="https://i.ibb.co/xxxxx/photo.jpg">
-        <div class="hint">imgbb.com par jaa kar apni tasveer upload karein, wahan se "Direct link" copy kar ke yahan paste karein.</div>
+        <label>Product ki tasveeron ke links</label>
+        <textarea id="pImageLink" placeholder="https://i.ibb.co/xxxxx/photo1.jpg&#10;https://i.ibb.co/xxxxx/photo2.jpg"></textarea>
+        <div class="hint">imgbb.com se "Direct link" copy karein. Kai tasveerein lagani hon to har link ki alag line banayein (Enter dabakar).</div>
         <div class="img-preview" id="imgPreview"><img id="imgPreviewTag" src=""></div>
       </div>
 
@@ -787,7 +822,10 @@ auth.onAuthStateChanged(function(user){
 
 function waLink(p){
   let text = "Assalam-o-Alaikum, mujhe " + p.name + " order karni hai.";
-  if(p.image) text += "\n\nTasveer: " + p.image;
+  const gallery = (p.images && p.images.length) ? p.images : (p.image ? [p.image] : []);
+  if(gallery.length){
+    text += "\n\nTasveerein:\n" + gallery.join("\n");
+  }
   if(p.video) text += "\nVideo: " + p.video;
   return "https://wa.me/" + WA_NUMBER + "?text=" + encodeURIComponent(text);
 }
@@ -803,6 +841,18 @@ function youtubeEmbed(url){
   return id ? ("https://www.youtube.com/embed/" + id) : null;
 }
 
+function cycleImage(btn, dir){
+  const wrapper = btn.closest(".card-icon");
+  const img = wrapper.querySelector("img");
+  const images = JSON.parse(img.dataset.images);
+  let idx = parseInt(img.dataset.index, 10);
+  idx = (idx + dir + images.length) % images.length;
+  img.src = images[idx];
+  img.dataset.index = idx;
+  const dots = wrapper.querySelectorAll(".gallery-dots span");
+  dots.forEach(function(d, i){ d.classList.toggle("active", i === idx); });
+}
+
 function makeCard(p){
   const isCustom = p.custom === true;
   let discountBadge = "";
@@ -812,9 +862,23 @@ function makeCard(p){
     discountBadge = '<div class="discount-flag">-' + pct + '%</div>';
     priceHtml = '<span class="old-price">Rs. ' + Number(p.oldPrice).toLocaleString() + '</span>' + priceHtml;
   }
-  const iconHtml = p.image
-    ? '<img src="' + p.image + '" alt="' + p.name + '">'
-    : (FALLBACK_ICONS[p.category] || FALLBACK_ICONS.daily);
+
+  const gallery = (p.images && p.images.length) ? p.images : (p.image ? [p.image] : []);
+  let iconHtml;
+  if(gallery.length){
+    const imagesJson = JSON.stringify(gallery).replace(/"/g, "&quot;");
+    let arrowsHtml = "";
+    let dotsHtml = "";
+    if(gallery.length > 1){
+      arrowsHtml =
+        '<button class="gallery-arrow prev" onclick="event.stopPropagation();cycleImage(this,-1)">&#8249;</button>' +
+        '<button class="gallery-arrow next" onclick="event.stopPropagation();cycleImage(this,1)">&#8250;</button>';
+      dotsHtml = '<div class="gallery-dots">' + gallery.map(function(_,i){ return '<span class="' + (i===0?"active":"") + '"></span>'; }).join("") + '</div>';
+    }
+    iconHtml = '<img src="' + gallery[0] + '" alt="' + p.name + '" data-images="' + imagesJson + '" data-index="0">' + arrowsHtml + dotsHtml;
+  } else {
+    iconHtml = FALLBACK_ICONS[p.category] || FALLBACK_ICONS.daily;
+  }
 
   let videoHtml = "";
   if(p.video){
@@ -900,9 +964,9 @@ cancelBtn.addEventListener("click", function(){ modalOverlay.classList.remove("o
 modalOverlay.addEventListener("click", function(e){ if(e.target === modalOverlay) modalOverlay.classList.remove("open"); });
 
 pImageLink.addEventListener("input", function(){
-  const url = pImageLink.value.trim();
-  if(url){
-    imgPreviewTag.src = url;
+  const lines = pImageLink.value.split("\n").map(function(s){ return s.trim(); }).filter(Boolean);
+  if(lines.length){
+    imgPreviewTag.src = lines[0];
     imgPreview.classList.add("show");
   } else {
     imgPreview.classList.remove("show");
@@ -934,7 +998,8 @@ productForm.addEventListener("submit", function(e){
     desc: desc,
     price: price,
     oldPrice: oldPrice,
-    image: document.getElementById("pImageLink").value.trim() || null,
+    image: (pImageLink.value.split("\n").map(function(s){ return s.trim(); }).filter(Boolean))[0] || null,
+    images: pImageLink.value.split("\n").map(function(s){ return s.trim(); }).filter(Boolean),
     video: videoLink || null,
     createdAt: Date.now()
   };
