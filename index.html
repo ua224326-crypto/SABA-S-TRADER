@@ -304,7 +304,16 @@
   .card-icon svg{width:50px; height:50px;}
   .card-body{padding:1rem 1.1rem 1.2rem; display:flex; flex-direction:column; flex:1;}
   .card-body h3{font-size:1.02rem; font-weight:600; margin-bottom:0.3rem;}
-  .card-note{font-size:0.83rem; color:var(--ink-soft); margin:0 0 0.7rem; flex:1;}
+.card-note{
+  font-size:0.83rem;
+  color:var(--ink-soft);
+  margin:0 0 0.7rem;
+  flex:1;
+  display:-webkit-box;
+  -webkit-line-clamp:3;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
   .cod-tag{
     display:inline-flex;
     align-items:center;
